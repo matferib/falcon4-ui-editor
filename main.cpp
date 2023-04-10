@@ -12,6 +12,7 @@
 
 #include "backends/imgui_impl_dx11.h"
 #include "backends/imgui_impl_win32.h"
+#include "FalconWindow.h"
 #include "Header.h"
 #include "imgui.h"
 
@@ -280,6 +281,7 @@ public:
 
       // Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
       {
+          // TODO remove this.
           ImGui::Checkbox("Demo Window", &show_demo_window_);      // Edit bools storing our window open/close state
 
           std::string falcon_install;
@@ -300,7 +302,7 @@ public:
           // Pick theater.
           if (!selected_theater_state_.selected) {
             std::vector<std::string> theaters = ListTheaters(falcon_install_dir_);
-            std::string falcon_theater_ = PickOption(selected_theater_state_, "Pick Theater", theaters);
+            falcon_theater_ = PickOption(selected_theater_state_, "Pick Theater", theaters);
             return;
           }
 
@@ -310,14 +312,58 @@ public:
           }
 
           // Display all UI files for the theater.
-          if (ui_selected_.empty()) {
-            std::string data_dir = falcon_install_dir_ + DataDirForTheater(falcon_theater_);
-            std::vector<std::string> ui = {"Main", };
-          }          
+          if (ui_set_selected_.empty()) {
+            ui_set_selected_ = PickUISet();
+            return;
+          }
+
+          // Open the window list.
+          if (!selected_window_state_.selected) {
+            window_selected_ = PickWindow();
+            return;
+          }
+          
+          if (window_selected_.empty()) {
+              PostQuitMessage(/*error_code=*/3);
+              return;
+          }
+
+          if (!window_set_.SetupDone()) {
+            SetupWindow();
+            return;
+          }
+
+          //ShowWindow();
       }
   }
 
 private:
+  std::string PickUISet() {
+      // Hardcoded, see internal_resolution.h:
+      // static void LoadMainWindow();
+      // static void LoadTacticalWindows();
+      // static void LoadCampaignWindows();
+      // static void LoadDogFightWindows();
+      // static void LoadSetupWindows();
+      // static void LoadCampaignSelectWindows();
+      // static void LoadTacEngSelectWindows();
+      // static void LoadInstantActionWindows();
+      // static void LoadPlannerWindows();
+      // static void LoadTacticalReferenceWindows();
+      // static void LoadLogBookWindows();
+      // static void LoadCommWindows();
+      std::string data_dir = falcon_install_dir_ + DataDirForTheater(falcon_theater_);
+      std::vector<std::string> ui_set = {
+          "Main", "Tactical???", "Campaign", "Dogfight", "Setup", "Campaign Select", "Tactical Engagement", "Instant Action", "Planner", "Tactical Reference", "Logbook", "Comms"
+      };
+      return PickOption(selected_theater_state_, "Pick UI", ui_set);
+  }
+
+  // Picks a window of the UI set (for example, the main window is composed of several sets).
+  std::string PickWindow() {
+      return PickOption(selected_window_state_, "Pick Window", GetMainWindowList(falcon_install_dir_ + DataDirForTheater(falcon_theater_)));
+  }
+
   std::string PickOption(SelectionState& selection_state, const std::string& title, const std::vector<std::string>& options) override {
     for (int n = 0; n < options.size(); ++n) {
       if (ImGui::Selectable(options[n].c_str(), selection_state.selection == n)) {
@@ -332,6 +378,10 @@ private:
     return "";
   }
 
+  void SetupWindow() {
+      window_set_.SetupFromFile(falcon_install_dir_ + DataDirForTheater(falcon_theater_));
+  }
+
   bool show_demo_window_ = true;
   ImVec4 clear_color_ = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -340,7 +390,11 @@ private:
   std::string falcon_install_dir_;
   SelectionState selected_theater_state_;
   std::string falcon_theater_;
-  std::string ui_selected_;
+  std::string ui_set_selected_;
+  SelectionState selected_window_state_;
+  std::string window_selected_;
+  bool window_setup_done_ = false;
+  falcon_ui::WindowSet window_set_;
 
   HWND hwnd_ = nullptr;
 };

@@ -152,19 +152,6 @@ std::vector<std::string> GetAllBMSInstallations() {
     return {};
 }
 
-std::string SimDatafolder(const std::string& base_folder) {
-    if (base_folder.empty()) { return {}; }
-    // tvt uses base data, so point sim folder to base
-    const auto tvt_delimiter = base_folder.find("Add-On Korea TvT");
-    if (tvt_delimiter != std::string::npos) { return base_folder.substr(0, tvt_delimiter) + "Sim"; }
-    return base_folder + "\\Sim";
-}
-
-std::string ObjectDatafolder(const std::string& base_folder) {
-    if (base_folder.empty()) { return {}; }
-    return base_folder + "\\TerrData\\Objects";
-}
-
 namespace {
 const char kDefaultTheaterName[] = "Default";
 }  // namespace
@@ -190,4 +177,16 @@ std::vector<std::string> ListTheaters(const std::string& base_folder) {
 
 std::string DataDirForTheater(const std::string& theater) {
     return theater == kDefaultTheaterName ? std::string{ "\\Data" } : "\\Data\\" + theater;
+}
+
+std::vector<std::string> GetMainWindowList(const std::string& theater_data_dir, UiType ui_type) {
+    std::fstream window_list_file { theater_data_dir + (ui_type == UiType::FHD ? "\\Art\\Main_Scf_fhd.lst" : "\\Art\\Main_Scf.lst") };
+    std::vector<std::string> windows;
+
+    std::string line;
+    for (getline(window_list_file, line); window_list_file.good(); getline(window_list_file, line)) {
+      windows.emplace_back(line);
+    }
+    window_list_file.close();
+    return windows;
 }
