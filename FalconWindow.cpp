@@ -42,18 +42,24 @@ bool IsComment(const std::string& line) {
 constexpr int kMaxX = 10000;
 constexpr int kMaxY = 10000;
 
+//---------------
+// Window Element
+//---------------
 class WindowElement : public Element {
 public:
     ElementType Type() const override { return ElementType::WINDOW; }
 
     bool Setup() override {
-        if (sub_elements_.empty()) return false;
-        if (sub_elements_.at(0).find("[SETUP]") != 0) return false;
+        if (attributes_.empty()) return false;
+        if (attributes_.at(0).find("[SETUP]") != 0) return false;
         // Sample: [SETUP] UI_MAIN_SCREEN C_TYPE_NORMAL 1024 768
-        std::string main_type, window_desc, window_ctype;
-        std::stringstream ss(sub_elements_.at(0));
-        ss >> main_type >> window_desc >> window_ctype >> width_ >> height_;
+        std::string main_type, label, window_ctype;
+        std::stringstream ss(attributes_.at(0));
+        ss >> main_type >> label >> window_ctype >> width_ >> height_;
         if (width_ <= 0 || height_ <= 0 || width_ >= kMaxX || height_ >= kMaxY) return false;
+        for (auto& child : children_) {
+            child->Setup();
+        }
         return true;        
     }
 
@@ -72,19 +78,42 @@ public:
         window_flags |= ImGuiWindowFlags_UnsavedDocument;
         p_open = NULL; // Don't pass our bool* to Begin*/
 
-        // We specify a default position/size in case there's no data in the .ini file.
-        // We only do it to make the demo applications a little more welcoming, but typically this isn't required.
-        const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkPos.x + 200, main_viewport->WorkPos.y + 200));
-        ImGui::SetNextWindowSize(ImVec2(width_, height_));
 
         // Main body of the Demo window starts here.
+        ImGui::SetNextWindowSize(ImVec2(width_, height_));
         ImGui::Begin("WindowElement", nullptr, window_flags);
+        for (auto& child : children_) {
+            child->Draw();
+        }
         ImGui::End();
     }
 
 private:
     int width_, height_;
+};
+
+class ButtonElement : public Element {
+public:
+    ElementType Type() const override { return ElementType::BUTTON; }
+
+    bool Setup() override {
+        if (attributes_.empty()) return false;
+        if (attributes_.at(0).find("[SETUP]") != 0) return false;
+        // Sample: [SETUP] IA_MAIN_CTRL C_TYPE_NORMAL 12 14
+        std::string main_type, label, window_ctype;
+        std::stringstream ss(attributes_.at(0));
+        ss >> main_type >> label >> window_ctype >> x_ >> y_;
+        if (x_ <= -kMaxX || y_ <= -kMaxY || x_ >= kMaxX || y_ >= kMaxY) return false;
+        return true;
+    }
+
+    void Draw() const override {
+        ImGui::SetCursorPos(ImVec2(x_, y_));
+        ImGui::Button("BUTTONTEXT");
+    }
+
+private:
+    int x_, y_;
 };
 
 class PlaceholderElement : public Element {
@@ -127,12 +156,12 @@ bool Element::Parse(std::string& line, std::istream& stream) {
 }
 
 bool Element::ParseSubElement(const std::string& line) {
-    std::unordered_set<std::string> valid_subelements = { "[SETUP]", "[XY]", "[RANGES]", "[GROUP]", "[FLAGBITON]", "[DEPTH]", "[BITMAP]", "[TILE]", "[XYWH]", "[BUTTONIMAGE]", "[SOUNDBITE]", "[CURSOR]" };
+    std::unordered_set<std::string> valid_subelements = { "[SETUP]", "[XY]", "[RANGES]", "[GROUP]", "[FLAGBITON]", "[DEPTH]", "[BITMAP]", "[TILE]", "[XYWH]", "[BUTTONIMAGE]", "[BUTTONTEXT]", "[SOUNDBITE]", "[CURSOR]" };
     auto closing_bracket = line.find(']');
     if (closing_bracket == std::string::npos || !valid_subelements.contains(line.substr(0, closing_bracket + 1))) {
         return false;
     }
-    sub_elements_.push_back(line);
+    attributes_.push_back(line);
     return true;
 }
 
@@ -150,6 +179,7 @@ std::unique_ptr<Element> ParseElement(std::string& line, std::istream& stream) {
     std::unique_ptr<Element> element;
     switch (type) {
         case Element::ElementType::WINDOW: element = std::make_unique<WindowElement>(); break;
+        case Element::ElementType::BUTTON: element = std::make_unique<ButtonElement>(); break;
         case Element::ElementType::UNKNOWN: break;
         default: element = std::make_unique<PlaceholderElement>(); break;
     }
@@ -171,8 +201,13 @@ void Window::SetupFromContents(std::istream& stream) {
     Parse(stream);
 
     // Sanity checks.
-    if (elements_.empty() || !elements_.at(0)->Setup()) {
+    if (root_element_ == nullptr || root_element_->Type() != Element::ElementType::WINDOW) {
         good_ = false;
+        return;
+    }
+    
+    if (!root_element_->Setup()) {
+        good_ = false; 
         return;
     }   
 }
@@ -203,15 +238,22 @@ void Window::Parse(std::istream& stream) {
         }
         element->SetComments(comments);
         comments.clear();
-        elements_.emplace_back(std::move(element));
+        if (root_element_ == nullptr) {
+            root_element_ = std::move(element);
+        } else {
+            root_element_->AddChild(std::move(element));
+        }
         if (line.empty()) return;  // An element only ends on a new element (not empty line) or EOF (empty line).
     }
 }
 
 void Window::Draw() const {
-    for (auto& element : elements_) {
-        element->Draw();
-    }
+    // We specify a default position/size in case there's no data in the .ini file.
+    // We only do it to make the demo applications a little more welcoming, but typically this isn't required.
+    const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
+    const int root_x = 200, root_y = 200;
+    ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkPos.x + root_x, main_viewport->WorkPos.y + root_y));
+    root_element_->Draw();
 }
 
 }  // namespace falcon_ui

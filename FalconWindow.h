@@ -35,8 +35,11 @@ public:
     // Returns the type of the element (WINDOW)
     virtual ElementType Type() const = 0;
 
+    void AddChild(std::unique_ptr<Element> element) { children_.push_back(std::move(element)); }
+
 protected:
-    std::vector<std::string> sub_elements_;
+    std::vector<std::unique_ptr<Element>> children_; 
+    std::vector<std::string> attributes_;
     bool good_ = false;
     std::vector<std::string> comments_;
 
@@ -56,7 +59,7 @@ public:
 private:
     void Parse(std::istream& stream);
 
-    std::vector<std::unique_ptr<Element>> elements_;
+    std::unique_ptr<Element> root_element_;
     bool done_ = false;
     bool good_ = false;
 };
