@@ -23,5 +23,5 @@ enum class UiType {
   STANDARD,
   FHD
 };
-std::vector<std::string> GetMainWindowList(const std::string& theater_data_dir, UiType ui_type = UiType::FHD);
+std::vector<std::string> GetWindowList(const std::string& theater_data_dir, const std::string& ui_set, UiType ui_type = UiType::FHD);
 

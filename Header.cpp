@@ -179,8 +179,8 @@ std::string DataDirForTheater(const std::string& theater) {
     return theater == kDefaultTheaterName ? std::string{ "\\Data" } : "\\Data\\" + theater;
 }
 
-std::vector<std::string> GetMainWindowList(const std::string& theater_data_dir, UiType ui_type) {
-    std::fstream window_list_file { theater_data_dir + (ui_type == UiType::FHD ? "\\Art\\Main_Scf_fhd.lst" : "\\Art\\Main_Scf.lst") };
+std::vector<std::string> GetWindowList(const std::string& theater_data_dir, const std::string& ui_set, UiType ui_type) {
+    std::fstream window_list_file { theater_data_dir + "\\Art\\" + ui_set + (ui_type == UiType::FHD ? "_Scf_fhd.lst" : "_Scf.lst") };
     std::vector<std::string> windows;
 
     std::string line;

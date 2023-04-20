@@ -1,26 +1,64 @@
 #pragma once
 
+#include <istream>
 #include <vector>
 #include <string>
+#include <vector>
+
 
 namespace falcon_ui {
 
-
 class Element {
 public:
+    enum class ElementType {
+        UNKNOWN,
+        WINDOW,
+        BITMAP,
+        TILE,
+        BUTTON,
+    };
 
-};
+    virtual ~Element() {}
+    // Parses the element, starting from line and then consuming stream. Assumes the first line (with type) has been consumed already.
+    // Param line is updated with the last line read from stream.
+    // Returns true if successful.
+    virtual bool Parse(std::string& line, std::istream& stream);
 
-class WindowSet {
-public:
-    void SetupFromFile(const std::string& filename);
-    void SetupFromContents(const std::string& contents);
+    // Setup the element after it is parsed.
+    virtual bool Setup() = 0;
 
-    bool SetupDone() const { return done_; }
+    // Set the high level comments for the element.
+    void SetComments(const std::vector<std::string>& comments) { comments_ = comments; }
+
+    virtual void Draw() const {}
+
+    // Returns the type of the element (WINDOW)
+    virtual ElementType Type() const = 0;
+
+protected:
+    std::vector<std::string> sub_elements_;
+    bool good_ = false;
+    std::vector<std::string> comments_;
 
 private:
-    std::vector<Element> elements_;
+    bool ParseSubElement(const std::string& line);
+};
+
+class Window {
+public:
+    void SetupFromFile(const std::string& filename);
+    void SetupFromContents(std::istream& stream);
+
+    bool SetupDone() const { return done_; }
+    
+    void Draw() const;
+
+private:
+    void Parse(std::istream& stream);
+
+    std::vector<std::unique_ptr<Element>> elements_;
     bool done_ = false;
+    bool good_ = false;
 };
 
 

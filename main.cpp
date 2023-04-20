@@ -272,69 +272,79 @@ public:
       WindowUI& thiz_;
     } run_on_exit(*this);
 
-      if (show_demo_window_) {
-          ImGui::ShowDemoWindow(&show_demo_window_);
-      }
+    if (show_demo_window_) {
+        ImGui::ShowDemoWindow(&show_demo_window_);
+    }
 
-      // End will be called by run_on_exit destructor.
-      ImGui::Begin("Falcon UI Editor");
+    // End will be called by run_on_exit destructor.
+    ImGui::Begin("Falcon UI Editor");
 
-      // Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
-      {
-          // TODO remove this.
-          ImGui::Checkbox("Demo Window", &show_demo_window_);      // Edit bools storing our window open/close state
+    // Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+    {
+        // TODO remove this.
+        ImGui::Checkbox("Demo Window", &show_demo_window_);      // Edit bools storing our window open/close state
 
-          std::string falcon_install;
-          if (!selected_install_state_.selected) {
-            falcon_install = PickOption(selected_install_state_, "Pick Installation", falcon_installs_);
-            if (selected_install_state_.selected) {
-              falcon_install_dir_ = InstallDirForInstallation(falcon_install);
-            }
-            return;
-          }
+        if (ImGui::Button("Test Main")) {
+            selected_install_state_.selected = true;
+            falcon_install_dir_ = "n:\\Falcon BMS 4.37 (Internal)";
+            selected_theater_state_.selected = true;
+            falcon_theater_ = "Default";
+            ui_set_selected_ = "main";
+            selected_window_state_.selected = true;
+            window_selected_ = "art\\main\\main_win.scf";
+        }
 
-          // No install.
-          if (falcon_install_dir_.empty()) {
-            PostQuitMessage(/*error_code=*/1);
-            return;
-          }
+        std::string falcon_install;
+        if (!selected_install_state_.selected) {
+        falcon_install = PickOption(selected_install_state_, "Pick Installation", falcon_installs_);
+        if (selected_install_state_.selected) {
+            falcon_install_dir_ = InstallDirForInstallation(falcon_install);
+        }
+        return;
+        }
+
+        // No install.
+        if (falcon_install_dir_.empty()) {
+        PostQuitMessage(/*error_code=*/1);
+        return;
+        }
           
-          // Pick theater.
-          if (!selected_theater_state_.selected) {
-            std::vector<std::string> theaters = ListTheaters(falcon_install_dir_);
-            falcon_theater_ = PickOption(selected_theater_state_, "Pick Theater", theaters);
-            return;
-          }
+        // Pick theater.
+        if (!selected_theater_state_.selected) {
+        std::vector<std::string> theaters = ListTheaters(falcon_install_dir_);
+        falcon_theater_ = PickOption(selected_theater_state_, "Pick Theater", theaters);
+        return;
+        }
 
-          if (falcon_theater_.empty()) {
-            PostQuitMessage(/*error_code=*/2);
-            return;
-          }
+        if (falcon_theater_.empty()) {
+        PostQuitMessage(/*error_code=*/2);
+        return;
+        }
 
-          // Display all UI files for the theater.
-          if (ui_set_selected_.empty()) {
-            ui_set_selected_ = PickUISet();
-            return;
-          }
+        // Display all UI files for the theater.
+        if (ui_set_selected_.empty()) {
+        ui_set_selected_ = PickUISet();
+        return;
+        }
 
-          // Open the window list.
-          if (!selected_window_state_.selected) {
-            window_selected_ = PickWindow();
-            return;
-          }
+        // Open the window list.
+        if (!selected_window_state_.selected) {
+        window_selected_ = PickWindow(ui_set_selected_);
+        return;
+        }
           
-          if (window_selected_.empty()) {
-              PostQuitMessage(/*error_code=*/3);
-              return;
-          }
-
-          if (!window_set_.SetupDone()) {
-            SetupWindow();
+        if (window_selected_.empty()) {
+            PostQuitMessage(/*error_code=*/3);
             return;
-          }
+        }
 
-          //ShowWindow();
-      }
+        if (!window_.SetupDone()) {
+        SetupWindow();
+        return;
+        } else {
+        window_.Draw();
+        }
+    }
   }
 
 private:
@@ -360,8 +370,8 @@ private:
   }
 
   // Picks a window of the UI set (for example, the main window is composed of several sets).
-  std::string PickWindow() {
-      return PickOption(selected_window_state_, "Pick Window", GetMainWindowList(falcon_install_dir_ + DataDirForTheater(falcon_theater_)));
+  std::string PickWindow(const std::string& ui_set) {
+      return PickOption(selected_window_state_, "Pick Window", GetWindowList(falcon_install_dir_ + DataDirForTheater(falcon_theater_) + '\\', ui_set));
   }
 
   std::string PickOption(SelectionState& selection_state, const std::string& title, const std::vector<std::string>& options) override {
@@ -379,7 +389,7 @@ private:
   }
 
   void SetupWindow() {
-      window_set_.SetupFromFile(falcon_install_dir_ + DataDirForTheater(falcon_theater_));
+      window_.SetupFromFile(falcon_install_dir_ + DataDirForTheater(falcon_theater_) + "\\" + window_selected_);
   }
 
   bool show_demo_window_ = true;
@@ -394,7 +404,7 @@ private:
   SelectionState selected_window_state_;
   std::string window_selected_;
   bool window_setup_done_ = false;
-  falcon_ui::WindowSet window_set_;
+  falcon_ui::Window window_;
 
   HWND hwnd_ = nullptr;
 };
